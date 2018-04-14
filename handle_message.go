@@ -3,8 +3,6 @@ package wsmanager
 import (
 	"encoding/json"
 
-	"../logger"
-
 	"github.com/rs/xid"
 )
 
@@ -60,7 +58,8 @@ func handleMsg(connectedSocket *ConnectedSocket, strMsg string) *UserMessage {
 	userMessage := &UserMessage{}
 	err := json.Unmarshal([]byte(strMsg), userMessage)
 	if err != nil {
-		logger.Log("session", "handleMsg", "unmarshal")
+		panic(err)
+		// logger.Log("session", "handleMsg", "unmarshal")
 	}
 	if handler, match := handlers[userMessage.Command]; match {
 		reply := handler(connectedSocket, userMessage.Params)

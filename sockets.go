@@ -3,7 +3,6 @@ package wsmanager
 import (
 	"encoding/json"
 
-	"../logger"
 	"github.com/gorilla/websocket"
 	"github.com/rs/xid"
 )
@@ -62,6 +61,6 @@ func (c *ConnectedSocket) write() {
 }
 
 func (c *ConnectedSocket) disconnected() {
-	logger.Log("wsmanagerwsmanager", "disconnected", "socket disconnected")
+	// logger.Log("wsmanagerwsmanager", "disconnected", "socket disconnected")
 	socketDisconnected(c)
 }
