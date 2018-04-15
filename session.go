@@ -1,31 +1,10 @@
-package wsmanager
+package server
 
 import (
 	"encoding/json"
 
-	"github.com/gorilla/websocket"
 	"github.com/rs/xid"
 )
-
-type ConnectedSocket struct {
-	ID          string
-	socket      *websocket.Conn
-	send        chan []byte
-	UserCreated chan *User
-}
-
-type User struct {
-	ID                xid.ID
-	Name              string
-	Send              chan *UserMessage
-	Receive           chan *UserMessage
-	ReconnectedSocket chan bool
-}
-
-type UserMessage struct {
-	Command string
-	Params  map[string]string
-}
 
 func (user *User) read() {
 	for {
@@ -38,7 +17,7 @@ func (user *User) read() {
 			recordedID := userToID[user]
 			msgBytes, err := json.Marshal(userMessage)
 			if err == nil {
-				if socket, ok := connectedSessionIDToSocketID[recordedID]; ok {
+				if socket, ok := connectedAuthIDToSocketID[recordedID]; ok {
 					socket.send <- msgBytes
 				}
 			}
@@ -46,49 +25,41 @@ func (user *User) read() {
 	}
 }
 
-var connectedSocketIDToSessionID = make(map[string]string)
-var connectedSessionIDToSocketID = make(map[string]*ConnectedSocket)
+var connectedSocketIDToAuthID = make(map[string]string)
+var connectedAuthIDToSocketID = make(map[string]*connectedSocket)
 
 var loggedInIds = make(map[string]*User)
 var userToID = make(map[*User]string)
 
-func addKeyToConnectedSession(connectedSocket *ConnectedSocket, recordedID string) (isLoggedIn bool, user *User) {
+func addKeyToConnectedSession(connectedSocket *connectedSocket, authID string) (isLoggedIn bool, user *User) {
 	// todo: clean up?
-	connectedSocketIDToSessionID[connectedSocket.ID] = recordedID
-	connectedSessionIDToSocketID[recordedID] = connectedSocket
-	user, isLoggedIn = loggedInIds[recordedID]
-	if isLoggedIn {
-		user.ReconnectedSocket <- true
-	}
+	connectedSocketIDToAuthID[connectedSocket.ID] = authID
+	connectedAuthIDToSocketID[authID] = connectedSocket
+	user, isLoggedIn = loggedInIds[authID]
 	return isLoggedIn, user
 }
 
-func logIn(recordedID string, username string) *User {
+func createUser(authID string) *User {
 	user := &User{
-		Name:              username,
 		ID:                xid.New(),
-		Receive:           make(chan *UserMessage),
 		Send:              make(chan *UserMessage),
+		Receive:           make(chan *UserMessage),
 		ReconnectedSocket: make(chan bool),
 	}
-	loggedInIds[recordedID] = user
-	userToID[user] = recordedID
-	go user.read()
+	loggedInIds[authID] = user
+	userToID[user] = authID
 	return user
 }
 
-func authenticatedSocket(connectedSocketID string) (authed bool, recordedID string) {
-	recordedID, ok := connectedSocketIDToSessionID[connectedSocketID]
-	return ok, recordedID
-}
-
-func sessionIDIsLoggedIn(recordedID string) (loggedIn bool, user *User) {
-	if user, ok := loggedInIds[recordedID]; ok {
-		return true, user
+func authenticatedSocket(connectedSocketID string) (hasUser bool, user *User) {
+	if authID, authed := connectedSocketIDToAuthID[connectedSocketID]; authed {
+		user, hasUser := loggedInIds[authID]
+		return hasUser, user
 	}
-	return false, &User{}
+
+	return false, nil
 }
 
-func socketDisconnected(socket *ConnectedSocket) {
-	delete(connectedSessionIDToSocketID, socket.ID)
+func socketDisconnected(socket *connectedSocket) {
+	delete(connectedSocketIDToAuthID, socket.ID)
 }

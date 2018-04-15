@@ -1,14 +1,12 @@
-package wsmanager
+package server
 
 import (
-	"encoding/json"
-
 	"github.com/gorilla/websocket"
 	"github.com/rs/xid"
 )
 
-func Create(conn *websocket.Conn) *ConnectedSocket {
-	client := &ConnectedSocket{
+func create(conn *websocket.Conn) *connectedSocket {
+	client := &connectedSocket{
 		ID:          xid.New().String(),
 		socket:      conn,
 		send:        make(chan []byte),
@@ -16,14 +14,12 @@ func Create(conn *websocket.Conn) *ConnectedSocket {
 	}
 	go client.read()
 	go client.write()
-	msg := getSendAuthUserMessage()
-	msgBytes, _ := json.Marshal(msg)
-	client.send <- msgBytes
+	sendAuthUserMessage(client)
 
 	return client
 }
 
-func (c *ConnectedSocket) read() {
+func (c *connectedSocket) read() {
 	defer func() {
 		c.disconnected()
 		c.socket.Close()
@@ -34,15 +30,11 @@ func (c *ConnectedSocket) read() {
 		if err != nil {
 			break
 		}
-		userMessage := handleMsg(c, string(message))
-		if userMessage != nil {
-			msgBytes, _ := json.Marshal(userMessage)
-			c.send <- msgBytes
-		}
+		handleMsg(c, string(message))
 	}
 }
 
-func (c *ConnectedSocket) write() {
+func (c *connectedSocket) write() {
 	defer func() {
 		c.socket.Close()
 	}()
@@ -60,7 +52,7 @@ func (c *ConnectedSocket) write() {
 	}
 }
 
-func (c *ConnectedSocket) disconnected() {
-	// logger.Log("wsmanagerwsmanager", "disconnected", "socket disconnected")
+func (c *connectedSocket) disconnected() {
+	// logger.Log("session", "disconnected", "socket disconnected")
 	socketDisconnected(c)
 }
