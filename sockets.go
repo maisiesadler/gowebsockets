@@ -1,4 +1,4 @@
-package server
+package wsmanager
 
 import (
 	"github.com/gorilla/websocket"
