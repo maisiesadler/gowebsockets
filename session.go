@@ -48,6 +48,7 @@ func createUser(authID string) *User {
 	}
 	loggedInIds[authID] = user
 	userToID[user] = authID
+	go user.read()
 	return user
 }
 
